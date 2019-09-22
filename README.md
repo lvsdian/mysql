@@ -12,17 +12,18 @@
   - **隔离性**：并发访问数据库时，一个用户的事务不被其他事务所干扰。
   - **持久性**： 一个事务被提交之后。它对数据库中数据的改变是持久的。
 - 并发事物带来的问题：
+- **丢失更新**：最后的更新覆盖了其他事务已经提交的更新。
+  - **脏读**：事务A读到了事务B已修改但尚未提交的数据。
 
-  - **脏读**：当一个事务正在访问数据并且对数据进行了修改，而这种修改还没有提交到数据库中，这时另外一个事务也访问了这个数据，然后使用了这个数据。
+  - **不可重复读**：事务A读到了事务B已经提交的修改数据。
 
-  - **不可重复读**：在一个事务还没有结束时，另一个事务也访问该数据，并且做了修改(update/delete)。那么，在第一个事务中的两次读数据之间，由于第二个事务的修改导致第一个事务两次读取的数据可能不太一样。
-
-  - **幻读(虚读)**：它发生在一个事务（T1）读取了几行数据，接着另一个并发事务（T2）插入了一些数据时。在随后的查询中，第一个事务（T1）就会发现多了一些原本不存在的记录，就好像发生了幻觉一样，所以称为幻读。
+  - **幻读(虚读)**：事务A读到了事务B已经提交的新增数据。
 - 隔离级别
   - **READ-UNCOMMITTED(读未提交)：**允许读取尚未提交的数据变更。
   - **READ-COMMITTED(读已提交)**：允许读取并发事务已经提交的数据。
   - **REPEATABLE-READ(可重复读)：**mysql默认级别， 对同一字段的多次读取结果都是一致的。
   - **SERIALIZABLE(可串行化)：** 最高的隔离级别，所有的事务依次逐个执行，这样事务之间就完全不可能产生干扰。
+  查看当前数据库隔离级别：`show variables like 'tx_isolation';`
 
 
 ### 存储引擎
@@ -290,18 +291,18 @@ for(int i = 0;i < 1000;i ++){
   <div align="center"> <img src="img/show profile一.png"/> </div><br>
 开启后，运行
   
+
 `show profiles`
-  
+
 查看最近运行的sql语句及分别的运行时间。
-  
+
 运行
-  
+
 `show profile + 参数 +for query + Query_ID `
-  
+
 查看具体的运行信息。
 
 <div align="center"> <img src="img/show profile 二.bmp"/> </div><br>
-
 当Status中出现如下值时要注意：
 
 	1. converting HEAP to MyISAM：查询结果太大，内存不够用，往磁盘上搬了。
@@ -312,7 +313,6 @@ for(int i = 0;i < 1000;i ++){
 参数列表：
 
 <div align="center"> <img src="img/show profile 三.bmp"/> </div><br>
-
 - 全局查询日志
 
   一般不在生产环境开启。
@@ -329,3 +329,67 @@ for(int i = 0;i < 1000;i ++){
   
 
   <div align="center"> <img src="img/global log一.bmp"/> </div><br>
+
+### 锁
+
+#### 表锁
+  - 偏向MyISAM存储引擎，开销小，加锁快，无死锁，锁定粒度大，发生锁冲突的概率最高，并发最低。
+
+`show open tables;`查看表是否被锁
+
+`lock table [table1] read/write,[table2] read/write;`给表加锁
+
+`unlock tables;`开锁
+
+session1给table1加读锁后
+
+  - session1和其他session都可以读table1。
+
+- session1不可以修改table1。
+- session1不可以读其他的table。
+
+- 其他session修改table1会阻塞，除非session1解锁(unlock tables)table1。
+
+session给table1加写锁后
+
+- session1可以读table1
+- session1可以修改table1
+- session1不能读其他的table
+- 其他session不能读table1,会阻塞，除非session1解锁(unlock tables)table1。
+
+**读锁会阻塞写，不会阻塞读；写锁会把读、写都阻塞**
+
+- 分析表锁定：`show status like 'table%';`
+
+<div align="center"> <img src="img/lock一.bmp"/> </div><br>
+- Table_locks_immediate：产生表级锁定的次数，表示可以立即获取锁的查询次数。
+
+- **Table_locks_waited**：不能立即获取锁的次数，每等待一次值+1。值较大说明存在严重的表级索争用情况。
+
+  **MyISam锁调度是写锁优先，写锁后，其他线程不能做任何操作，大量更新会使查询很难得到锁。所以不适合做主表引擎。**
+
+#### 行锁
+
+ - 偏向InnoDB存储引擎，开销大，加锁慢；会出现死锁；锁定粒度最小，发生锁冲突的概率最低，并发度也最高。
+
+ <div align="center"> <img src="img/lock二.bmp"/> </div><br>
+- 无索引行锁升级为表锁
+  - **比如varchar类型不写单引号，会进行自动类型转换，使索引失效并且使行锁变为表锁。**
+
+- 间隙锁
+  - 当使用范围条件而不是相等条件检索数据时，InnoDB会给符合条件的已有记录加锁，对于键值在在条件范围内但并不存在的记录，叫做间隙。InnoDB也会对这个间隙加锁。这是，其他事务无法插入数据。对性能有危害。
+
+- 锁定一行
+
+<div align="center"> <img src="img/lock三.bmp"/> </div><br>
+
+- 行锁分析
+
+`show status like 'innodb_row_lock%'`
+
+<div align="center"> <img src="img/lock四.bmp"/> </div><br>
+
+- Innodb_row_lock_time_avg：平均等待时长
+- Innodb_row_lock_waits：等待总次数
+- Innodb_row_lock_time：等待总时长
+
