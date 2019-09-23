@@ -52,10 +52,12 @@
 ​       drop语句将表所占用的空间全释放掉。
 
 4. TRUNCATE 和DELETE只删除数据， DROP则删除整个表（结构和数据）。
-
 5. delete语句为DML（data Manipulation Language)，要commit.
-
 6. truncate、drop是DLL（data define language)，不用提交，不能回滚.
+
+### join
+
+<div align="center"> <img src="img/join.jpg"/> </div><br>
 
 
 ### 存储引擎
