@@ -47,9 +47,9 @@
 
 3. 当表被TRUNCATE 后，会返还数据所占空间，
 
-​       DELETE操作不会返回数据占用的空间。
+	​       DELETE操作不会返回数据占用的空间。
 
-​       drop语句将表所占用的空间全释放掉。
+	​       drop语句将表所占用的空间全释放掉。
 
 4. TRUNCATE 和DELETE只删除数据， DROP则删除整个表（结构和数据）。
 5. delete语句为DML（data Manipulation Language)，要commit.
@@ -153,7 +153,8 @@
   5. B +树中，每个非根内部结点关键字个数n取值范围：[m/2] <= n <= m;
      B树中，每个非根内部结点关键字个数为 [m/2] -1  <= n <= m-1
 
-<div align="center"> <img src="img/B+树.png"/> </div><br>
+	<div align="center"> <img src="img/B+树.png"/> </div><br>
+	
 - **B+树相对B树的优势**
   - **查询操作消耗的时间取决于磁盘IO的次数，而B树的结点包含指针和数据，B+树的结点只包含指针，所以B+树看起来更“矮胖”，同一磁盘页可容纳更多的B+树结点，IO次数就更少。**
   - **B树中进行查询，只要找到匹配元素就行，无论是中间结点还是叶子结点；B+树中进行查询必须查到最终的叶子结点才行，所以B+树更稳定。**
@@ -201,32 +202,39 @@
     多表：用小结果集驱动大结果集。优先优化内层循环。
 - **索引失效**
 > 全值匹配我最爱，最左前缀要遵循；
-<div align="center"> <img src="img/全值匹配我最爱.bmp" title="name age pos索引"/></div><br>
+	<div align="center"> <img src="img/全值匹配我最爱.bmp" title="name age pos索引"/></div><br>
+	
 > 带头大哥不能死，中间兄弟不能断；
-<div align="center"> <img src="img/带头大哥不能死，中间兄弟不能断.bmp" title="name age pos索引"/> </div><br> 
+	<div align="center"> <img src="img/带头大哥不能死，中间兄弟不能断.bmp" title="name age pos索引"/> </div><br> 
+	
 > 索引列上少计算，
-<div align="center"> <img src="img/索引列上少计算.bmp" title="name age pos索引"/> </div><br> 
+	<div align="center"> <img src="img/索引列上少计算.bmp" title="name age pos索引"/> </div><br> 
+	
 > 范围之后全失效；
-<div align="center"> <img src="img/范围之后全失效.bmp" title="name,age有用,pos失效"/> </div><br> 
+	<div align="center"> <img src="img/范围之后全失效.bmp" title="name,age有用,pos失效"/> </div><br> 
+	
 > like百分写最右，(如果确实要用 %July% ，可以用覆盖索引，查询字段必须是建立了索引的字段)
-<div align="center"> <img src="img/like百分写最右.bmp" title="name age pos索引"/> </div><br> 
+	<div align="center"> <img src="img/like百分写最右.bmp" title="name age pos索引"/> </div><br> 
+	
 > 覆盖索引不写星；
-<div align="center"> <img src="img/覆盖索引不写星1.bmp" title="name age pos索引"/> </div><br> 
-<div align="center"> <img src="img/覆盖索引不写星2.bmp" title="name age pos索引"/> </div><br> 
+	<div align="center"> <img src="img/覆盖索引不写星1.bmp" title="name age pos索引"/> </div><br> 
+	<div align="center"> <img src="img/覆盖索引不写星2.bmp" title="name age pos索引"/> </div><br> 
+	
 > 不等空值还有or，索引失效要少用；
-<div align="center"> <img src="img/不等.bmp" title="name age pos索引"/> </div><br> 
-<div align="center"> <img src="img/空值.bmp" title="name age pos索引"/> </div><br> 
-<div align="center"> <img src="img/or.bmp" title="name age pos索引"/> </div><br> 
+	<div align="center"> <img src="img/不等.bmp" title="name age pos索引"/> </div><br> 
+	<div align="center"> <img src="img/空值.bmp" title="name age pos索引"/> </div><br> 
+	<div align="center"> <img src="img/or.bmp" title="name age pos索引"/> </div><br> 
+	
 > var引号不能丢，SQL高级也不难。
-<div align="center"> <img src="img/var引号不能丢.bmp" title="name age pos索引"/> </div><br> 
-<div align="center"> <img src="img/小总结.bmp"/> </div><br> 
-<div align="center"> <img src="img/案例一.png"/> </div><br> 
-<div align="center"> <img src="img/案例二.png"/> </div><br>
-<div align="center"> <img src="img/案例三.png"/> </div><br>
-<div align="center"> <img src="img/案例四.png"/> </div><br>
-<div align="center"> <img src="img/案例五.png"/> </div><br>
-<div align="center"> <img src="img/案例六.png"/> </div><br>
-<div align="center"> <img src="img/案例七.png"/> </div><br>
+	<div align="center"> <img src="img/var引号不能丢.bmp" title="name age pos索引"/> </div><br> 
+	<div align="center"> <img src="img/小总结.bmp"/> </div><br> 
+	<div align="center"> <img src="img/案例一.png"/> </div><br> 
+	<div align="center"> <img src="img/案例二.png"/> </div><br>
+	<div align="center"> <img src="img/案例三.png"/> </div><br>
+	<div align="center"> <img src="img/案例四.png"/> </div><br>
+	<div align="center"> <img src="img/案例五.png"/> </div><br>
+	<div align="center"> <img src="img/案例六.png"/> </div><br>
+	<div align="center"> <img src="img/案例七.png"/> </div><br>
 - 查询截取分析
   1. 慢查询的开启与捕获
   2. explain + 慢SQL分析
@@ -300,29 +308,33 @@ for(int i = 0;i < 1000;i ++){
      	2. 尝试增大sort_buffer
      	3. 尝试增大max_length_for_sort_data
   
-<div align="center"> <img src="img/order by 一.png"/> </div><br>
-<div align="center"> <img src="img/order by 二.png"/> </div><br>
-<div align="center"> <img src="img/order by 三.png"/> </div><br>
+	<div align="center"> <img src="img/order by 一.png"/> </div><br>
+	<div align="center"> <img src="img/order by 二.png"/> </div><br>
+	<div align="center"> <img src="img/order by 三.png"/> </div><br>
+
 - group by
   - where高于having，能在where里限定的条件就不要去having里限定。其他与order by相同。
 
 - 慢查询日志
   - mysql的慢查询日志是用来记录响应时间大于(不是大于等于)long_query_time的SQL语句。默认不会开启，如果不是调优，不建议开。
 
-<div align="center"> <img src="img/slow query log 一.png"/> </div><br>
-<div align="center"> <img src="img/slow query log 二.png"/> </div><br>
-<div align="center"> <img src="img/slow query log 三.png"/> </div><br>
+	<div align="center"> <img src="img/slow query log 一.png"/> </div><br>
+	<div align="center"> <img src="img/slow query log 二.png"/> </div><br>
+	<div align="center"> <img src="img/slow query log 三.png"/> </div><br>
+	
 - mysqldumpslow
 
   ​	mysqldumpslow可用来分析慢查询日志文件
 
-<div align="center"> <img src="img/mysqldumpslow一.png"/> </div><br>
-<div align="center"> <img src="img/mysqldumpslow二.png"/> </div><br>
+	<div align="center"> <img src="img/mysqldumpslow一.png"/> </div><br>
+	<div align="center"> <img src="img/mysqldumpslow二.png"/> </div><br>
+	
 - show profile
 
   ​	show profile可用来分析当前会话中语句执行的资源消耗情况。
 
-  <div align="center"> <img src="img/show profile一.png"/> </div><br>
+  	<div align="center"> <img src="img/show profile一.png"/> </div><br>
+	
 开启后，运行
   
 
@@ -336,7 +348,8 @@ for(int i = 0;i < 1000;i ++){
 
 查看具体的运行信息。
 
-<div align="center"> <img src="img/show profile 二.bmp"/> </div><br>
+	<div align="center"> <img src="img/show profile 二.bmp"/> </div><br>
+	
 当Status中出现如下值时要注意：
 
 	1. converting HEAP to MyISAM：查询结果太大，内存不够用，往磁盘上搬了。
@@ -346,7 +359,8 @@ for(int i = 0;i < 1000;i ++){
 
 参数列表：
 
-<div align="center"> <img src="img/show profile 三.bmp"/> </div><br>
+	<div align="center"> <img src="img/show profile 三.bmp"/> </div><br>
+	
 - 全局查询日志
 
   一般不在生产环境开启。
@@ -395,7 +409,8 @@ session给table1加写锁后
 
 - 分析表锁定：`show status like 'table%';`
 
-<div align="center"> <img src="img/lock一.bmp"/> </div><br>
+	<div align="center"> <img src="img/lock一.bmp"/> </div><br>
+	
 - Table_locks_immediate：产生表级锁定的次数，表示可以立即获取锁的查询次数。
 
 - **Table_locks_waited**：不能立即获取锁的次数，每等待一次值+1。值较大说明存在严重的表级索争用情况。
@@ -406,7 +421,8 @@ session给table1加写锁后
 
  - 偏向InnoDB存储引擎，开销大，加锁慢；会出现死锁；锁定粒度最小，发生锁冲突的概率最低，并发度也最高。
 
- <div align="center"> <img src="img/lock二.bmp"/> </div><br>
+ 	<div align="center"> <img src="img/lock二.bmp"/> </div><br>
+	
 - 无索引行锁升级为表锁
   - **比如varchar类型不写单引号，会进行自动类型转换，使索引失效并且使行锁变为表锁。**
 
@@ -415,12 +431,14 @@ session给table1加写锁后
 
 - 锁定一行
 
-<div align="center"> <img src="img/lock三.bmp"/> </div><br>
+	<div align="center"> <img src="img/lock三.bmp"/> </div><br>
+	
 - 行锁分析
 
 `show status like 'innodb_row_lock%'`
 
-<div align="center"> <img src="img/lock四.bmp"/> </div><br>
+	<div align="center"> <img src="img/lock四.bmp"/> </div><br>
+	
 - Innodb_row_lock_time_avg：平均等待时长
 - Innodb_row_lock_waits：等待总次数
 - Innodb_row_lock_time：等待总时长
@@ -432,7 +450,8 @@ session给table1加写锁后
 - 水平切分又称为 Sharding，它是**将同一个表中的记录拆分到多个结构相同的表中**。
 
 - 当一个表的数据不断增多时，Sharding 是必然的选择，它可以将数据分布到集群的不同节点上，从而缓存单个数据库的压力。
-<div align="center"> <img src="img/水平切分.jpg"/> </div><br>
+	<div align="center"> <img src="img/水平切分.jpg"/> </div><br>
+	
 - 水平拆分可以支持非常大的数据量。需要注意的一点是：分表仅仅是解决了单一表数据过大的问题，但由于表的数据还是在同一台机器上，其实对于提升MySQL并发能力没有什么意义，所以 **水平拆分最好分库** 。水平拆分能够 **支持非常大的数据量存储，应用端改造也少**，但 **分片事务难以解决** ，跨节点Join性能较差，逻辑复杂。
 - **数据库分片的两种常见方案：**
   - **客户端代理：** **分片逻辑在应用端，封装在jar包中，通过修改或者封装JDBC层来实现。** 当当网的 **Sharding-JDBC** 、阿里的TDDL是两种比较常用的实现。
@@ -444,6 +463,7 @@ session给table1加写锁后
 
 - 在数据库的层面使用垂直切分将按数据库中表的密集程度部署到不同的库中，例如将原来的电商数据库垂直切分成商品数据库、用户数据库等。
 
-<div align="center"> <img src="img/垂直切分.jpg"/> </div><br>
+	<div align="center"> <img src="img/垂直切分.jpg"/> </div><br>
+	
 - 垂直拆分的**优点**： 可以使得列数据变小，在查询时减少读取的Block数，减少I/O次数。此外，垂直分区可以简化表的结构，易于维护。
 - 垂直拆分的**缺点**： 主键会出现冗余，需要管理冗余列，并会引起Join操作，可以通过在应用层进行Join来解决。此外，垂直分区会让事务变得更加复杂；
