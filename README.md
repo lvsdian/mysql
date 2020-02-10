@@ -370,21 +370,24 @@ for(int i = 0;i < 1000;i ++){
 	select * from A where id in (select id from B);
 	相当于
 	select id from B
-	select * from A where A.id = B.id;	
+	select * from A where A.id = B.id;
 ```
 > `B`为外层循环，`A`为内层循环，所以，`B < A`时，用` in`。
 
 - `exist`
+
 ```sql
-  	select * from A where exists (select 1 from B where B.id = A.id);  
-  	相当于
- 	select * from A
-	select * from B where B.id = A.id
+  select * from A where exists (select 1 from B where B.id = A.id);
+  相当于
+  select * from A
+  select * from B where B.id = A.id
 ```
 > `A`为外层循环，`B`为内层循环，索引`A < B`时，用`exist`。
 
 ##### `exist`
+
 - `select  ... from table where exitst (subquery);`可理解为：将主查询的数据，放到子查询中做条件验证，根据验证结果(true或者false)来决定主查询数据结果是否保留。
+
 ##### select 1/count()
 
 ```sql
@@ -415,15 +418,15 @@ select 1 from student
   
 - 案例分析一
 
- ![](img/order_by_一.png)
+![](img/order_by_一.png)
 
 - 案例分析二
 
- ![](img/order_by_二.png)
+![](img/order_by_二.png)
 
 - 案例分析三
 
-  ![](img/order_by_三.png)
+![](img/order_by_三.png)
 
 ##### group by
 
@@ -433,11 +436,11 @@ select 1 from student
 
   - `mysql`的慢查询日志是用来**记录响应时间大于(不是大于等于)`long_query_time`的`SQL`语句**。默认关闭，如果不是调优，不建议开。
 
-![](img/slow_query_log_一.png)
+  ![](img/slow_query_log_一.png)
 
-![](img/slow_query_log_二.png)
+  ![](img/slow_query_log_二.png)
 
-![](img/slow_query_log_三.png)
+  ![](img/slow_query_log_三.png)
 
   ##### 日志分析工具`mysqlDumpSlow`
 
@@ -463,18 +466,136 @@ select 1 from student
 
 - 当Status中出现如下值时要注意：
 
-  1. `converting HEAP to MyISAM`：查询结果太大，内存不够用，往磁盘上搬了。
+​	1. `converting HEAP to MyISAM`：查询结果太大，内存不够用，往磁盘上搬了。
 
   2. `Creating tmp table`：创建了临时表。
 
   3. `Copying tmp table on disk`：把内存中临时表复制到磁盘。
 
-  4. `locked`
+    4. `locked`
 
-- 参数列表：
+- 参数列表
 
 ![](img/show_profile_三.bmp)
 
 #### 全局查询日志
 
-- 一般不
+- 一般不在生产环境开启。
+
+```sql
+set global general_log = 1;
+set global log_output = 'TABLE';
+...
+-- 执行sql
+...
+select * from mysql.general_log;-- 执行的sql就会记录到general_log表里
+```
+
+
+
+![](img/global_log一.bmp)
+
+### 锁
+
+- 分类
+  - 操作粒度：表锁、行锁
+  - 操作类型：读锁(共享锁)、写锁(排它锁、独占锁)
+    - 排它锁：`Exclusive Locks`，简称`X锁`，在事务要改动一条记录时，需要先获取该记录的`X锁`。
+    - 共享锁：`Shared Locks`，简称`S锁`，对读操作加S锁，在普通的`select`语句后加`LOCK IN SHARE MODE`
+
+#### 表锁
+  - 偏向`MyISAM`存储引擎，开销小，加锁快，无死锁，锁定粒度大，发生锁冲突的概率最高，并发最低。
+
+- 查看哪些表被锁了
+  - `show open tables;`
+- 加表锁
+  - `lock table 表名1 read(write),表名2 read(write);`
+
+- 释放锁
+  - `unlock tables;`
+
+##### 读锁
+ - `session1`给`table1`加读锁后
+      - `session1`和其他`session`都可以读table1。
+      - `session1`不可以修改`table1`。
+      - `session1`不可以读其他的`table`。
+      - 其他`session`修改`table1`会阻塞，除非`session1`释放锁。
+
+##### 写锁
+
+- `session`给`table1`加写锁后
+  - `session1`可以增、删、查、改`table1`
+  - `session1`不能读其他的`table`
+  - 其他`session`不能读`table1`,会阻塞，更不能写`table1`，除非`se`
+  - `ssion1`释放锁。
+
+##### 读写锁总结
+
+- **读锁会阻塞写，不会阻塞读；写锁会把读、写都阻塞**
+
+##### 表锁定分析
+
+- 分析表锁定：`show status like 'table%';`
+
+	![](img/lock一.bmp)
+	
+	- `Table_locks_immediate`：产生表级锁定的次数，表示可以立即获取锁的查询次数。
+	
+	- **Table_locks_waited**：不能立即获取锁的次数，每等待一次值+1。值较大说明存在严重的表级索争用情况。
+	
+- **MyISam锁调度是写锁优先，写锁后，其他线程不能做任何操作，大量更新会使查询很难得到锁。所以不适合做主表引擎。**
+
+#### 行锁
+
+ - 偏向InnoDB存储引擎，开销大，加锁慢；会出现死锁；锁定粒度最小，发生锁冲突的概率最低，并发度也最高。
+
+##### 行锁演示
+
+![](img/lock二.bmp)
+
+##### 无索引行锁升级为表锁
+
+- **比如`varchar`类型不写单引号，会进行自动类型转换，使索引失效并且使行锁变为表锁。**
+##### 间隙锁
+
+- 当使用范围条件而不是相等条件检索数据时，`InnoDB`会给符合条件的已有记录加锁，对于键值在在条件范围内但并不存在的记录，叫做间隙。`InnoDB`也会对这个间隙加锁。这时，其他事务无法插入数据。对性能有危害。
+  
+- 锁定一行(开启事务 + `for update` + 提交事务)
+
+	![](img/lock三.bmp)
+
+##### 行锁定分析
+
+- 行锁分析`show status like 'innodb_row_lock%'`
+
+  ![](img/lock四.bmp)
+
+  - `Innodb_row_lock_time_avg`：平均等待时长
+  - `Innodb_row_lock_waits`：等待总次数
+  - `Innodb_row_lock_time`：等待总时长
+
+### 切分
+
+#### 水平切分
+
+- 水平切分又称为 Sharding，它是**将同一个表中的记录拆分到多个结构相同的表中**。
+
+- 当一个表的数据不断增多时，Sharding 是必然的选择，它可以将数据分布到集群的不同节点上，从而缓存单个数据库的压力。
+	
+	![](img/水平切分.jpg)
+	
+- 水平拆分可以支持非常大的数据量。需要注意的一点是：分表仅仅是解决了单一表数据过大的问题，但由于表的数据还是在同一台机器上，其实对于提升MySQL并发能力没有什么意义，所以 **水平拆分最好分库** 。水平拆分能够 **支持非常大的数据量存储，应用端改造也少**，但 **分片事务难以解决** ，跨节点Join性能较差，逻辑复杂。
+- **数据库分片的两种常见方案：**
+  - **客户端代理：** **分片逻辑在应用端，封装在jar包中，通过修改或者封装JDBC层来实现。** 当当网的 **Sharding-JDBC** 、阿里的TDDL是两种比较常用的实现。
+  - **中间件代理：** **在应用和数据中间加了一个代理层。分片逻辑统一维护在中间件服务中。** 我们现在谈的 **Mycat** 、360的Atlas、网易的DDB等等都是这种架构的实现。
+
+#### 垂直切分
+
+- 垂直切分是将一张表按列切分成多个表，通常是按照列的关系密集程度进行切分，也可以利用垂直切分将经常被使用的列和不经常被使用的列切分到不同的表中。
+
+- 在数据库的层面使用垂直切分将按数据库中表的密集程度部署到不同的库中，例如将原来的电商数据库垂直切分成商品数据库、用户数据库等。
+
+	![](img/垂直切分.jpg)
+	
+- 垂直拆分的**优点**： 可以使得列数据变小，在查询时减少读取的Block数，减少I/O次数。此外，垂直分区可以简化表的结构，易于维护。
+- 垂直拆分的**缺点**： 主键会出现冗余，需要管理冗余列，并会引起Join操作，可以通过在应用层进行Join来解决。此外，垂直分区会让事务变得更加复杂；
