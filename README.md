@@ -217,7 +217,9 @@
 
 #### 为什么推荐主键自增
 
-- 主键自增，每次插入的主键都会比前面的大，构建B+树是直接在右边加就行，不需要进行移动其他结点的位置，不需要页分裂等操作
+- 主键自增，每次插入的主键都会比前面的大，构建B+树是直接在右边加就行，不需要进行移动其他结点的位置，如果移动其他结点位置，还可能造成页分裂。
+- 页分裂：移动的那部分结点需要放在一个新申请的数据页中。
+- 
 
  #### B-Tree、B+Tree
 
@@ -657,7 +659,7 @@ select * from mysql.general_log;-- 执行的sql就会记录到general_log表里
 ### 主从复制
 
 1. 主从复制其实就是为了减轻数据库的压力，然后以主从复制为基础，然后实现数据库的读写分离来提升数据库的并发负载压力。
-2. 其实就是主库新建一个IO线程，把数据的一些改变记录到二进制binlog日志中，然后salve服务器会在一定时间间隔内对master二进制日志进行探测其是否发生改变
+2. 其实就是主库新建一个IO线程，把数据的一些改变记录到二进制binlog日志中，然后salve服务器会在一定时间间隔内对master的binlog进行探测，保证自己跟主库的数据是一样的。
 
 ### 切分
 
@@ -670,10 +672,8 @@ select * from mysql.general_log;-- 执行的sql就会记录到general_log表里
 	![](img/水平切分.jpg)
 	
 - 水平拆分可以支持非常大的数据量。需要注意的一点是：分表仅仅是解决了单一表数据过大的问题，但由于表的数据还是在同一台机器上，其实对于提升MySQL并发能力没有什么意义，所以 **水平拆分最好分库** 。水平拆分能够 **支持非常大的数据量存储，应用端改造也少**，但 **分片事务难以解决** ，跨节点Join性能较差，逻辑复杂。
-- **数据库分片的两种常见方案：**
-  
-  - **客户端代理：** **分片逻辑在应用端，封装在jar包中，通过修改或者封装JDBC层来实现。** 当当网的 **Sharding-JDBC** 、阿里的TDDL是两种比较常用的实现。
-  - **中间件代理：** **在应用和数据中间加了一个代理层。分片逻辑统一维护在中间件服务中。** 我们现在谈的 **Mycat** 、360的Atlas、网易的DDB等等都是这种架构的实现。
+
+- id解决方案：雪花算法(推特开源的分布式id生成算法，时间戳 + 机器号 + 同一毫秒内产生的不同id)
 
 #### 垂直切分
 
@@ -763,7 +763,10 @@ select * from mysql.general_log;-- 执行的sql就会记录到general_log表里
 
          判断是否真的在等待锁，我们可以用 **`show processlist`**这个命令来查看当前的状态
 
-      3. **`show processlist`**显示：`Waiting for table flush`。等flush，`flush tables with read lock;`被别的语句阻塞，这个查询慢的语句又被`flush tables with read lock;`阻塞
+         1. **`show processlist`显示：`Waiting for table flush`**。等flush，`flush tables with read lock;`被别的语句阻塞，这个查询慢的语句又被`flush tables with read lock;`阻塞
+         2. **`show processlist`显示：`Waiting for table metadata lock`**。说明一个请求正持有`metadata lock`写锁，把select语句堵住了，通过`SELECT blocking_pid FROM sys.schema_table_lock_waits;`找到阻塞的process id，kill掉
+         3. 一个事务不提交，导致select查询不能执行。在`sys.innodb_lock_waits`中找到造成阻塞的线程id，kill掉它。
+         4. 事务A开启，事务B执行`update t  set c = c + 1 where id = 1`一百万次，事务A分别执行`select * from t where id=1`、`select * from t where id=1 lock in share mode`。第一句没加锁，但是属于一致性读，依次执行undo log，执行了100万次以后，才将1这个结果返回，较慢。第二句虽然加了锁，但是是当前读，因此会直接读到1000001这个结果，所以速度很快。
 
    2. 一直很慢
 
@@ -814,10 +817,29 @@ select * from mysql.general_log;-- 执行的sql就会记录到general_log表里
 11. \G
 
    1. 变成纵向的
+   
+12. MRR(Multi-Range Read)
+
+   1. 5.6开始支持
+
+     开启：`set optimizer_switch='mrr=on';`
+
+     考虑MRR的成本：`set optimizer_switch='mrr_cost_based=on';`
+
+   2. **MRR 通过把「随机磁盘读」，转化为「顺序磁盘读」，从而提高了索引查询的性能**，**对于 Innodb，则会按照聚簇索引键值排好序，再顺序的读取聚簇索引。**本质是一种空间换时间的算法，
+
+   3. 如果不用mrr，比如读完第1页后，读第2页，第3页，接着又去读第1页，那么机械硬盘的磁盘和磁头就需要来回做机械运动，MRR把索引减少磁盘IO的作用进一步放大
 
 
 
 
+
+1. 建索引考虑的因素
+   1. 覆盖索引-->减少回表次数；索引下推-->减少回表次数
+   2. 介质是机械硬盘-->开开MRR-->随机读变成顺序读
+   3. 如果不要求唯一-->普通索引替换唯一索引，普通索引可以使用change buffer
+2. explain分析出来不一定是最优的
+   1. 因为我们在索引的时候，可能会涉及一些回表或者排序的操作
 
 
 
