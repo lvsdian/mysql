@@ -866,7 +866,7 @@ select * from mysql.general_log;-- 执行的sql就会记录到general_log表里
 
    3. 如果不用mrr，比如读完第1页后，读第2页，第3页，接着又去读第1页，那么机械硬盘的磁盘和磁头就需要来回做机械运动，MRR把索引减少磁盘IO的作用进一步放大
 
-14. **binlog** VS **redo log**
+14. **binlog** VS **redo log **VS **undo log**
 
    1. binlog
      1. Binlog是二进制格式的日志，又称为归档日志，是**MySQL Server层记录的日志**。
@@ -876,6 +876,11 @@ select * from mysql.general_log;-- 执行的sql就会记录到general_log表里
      1. redo log是**InnoDB存储引擎层的日志**。
      2. redo log作为异常宕机或者介质故障后的数据恢复使用，保证crash safe
      3. redo log是循环写，日志空间大小固定。
+   3. mysql通过两阶段提交来保证redo log与bin log数据一致
+      1. 第一阶段：redo log写盘，事务进入prepare状态
+      2. 第二阶段：binlog写盘，事务进入commit 状态
+   4. undo log
+      1. 保证原子性，用于回滚；用于MVCC
 
 15. InnoDB与MyISAM存储结构
 
