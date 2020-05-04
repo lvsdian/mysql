@@ -728,7 +728,7 @@ select * from mysql.general_log;-- 执行的sql就会记录到general_log表里
 
      如果是当前读，T1 在 select 的时候加了锁（间隙锁，行锁）进入一致性读，那么自然没有 T2 可以插入数据这一回事儿了。就属于next-key锁，所以不存在幻读。
 
-  3. **快照读(无锁读)的幻读-mvcc 解决**
+  3. **快照读(无锁读)的幻读-mvcc 解决(掩耳盗铃的做法)**
      **当前读(加锁读)的幻读-gap 锁解决**
 
 3. mysql的索引讲一下，一级和二级索引的区别，什么时候可以不用查一级索引
@@ -903,3 +903,4 @@ select * from mysql.general_log;-- 执行的sql就会记录到general_log表里
 
 
 
+. 
