@@ -713,57 +713,34 @@ select * from mysql.general_log;-- 执行的sql就会记录到general_log表里
 - 垂直拆分的**缺点**： 主键会出现冗余，需要管理冗余列，并会引起Join操作，可以通过在应用层进行Join来解决。此外，垂直分区会让事务变得更加复杂；
 
 
-
+***
 
 
 1. MySQL如何在RR隔离级别下避免幻读问题
-
-	- **行锁防止别的事务修改或删除**，**GAP锁防止别的事务新增**，**行锁和GAP锁结合形成的的Next-Key锁共同解决了RR级别在写数据时的幻读问题**。
+   - **行锁防止别的事务修改或删除**，**GAP锁防止别的事务新增**，**行锁和GAP锁结合形成的的Next-Key锁共同解决了RR级别在写数据时的幻读问题**。
 	
-2. MVCC与RR隔离级别下的幻读
-
-  1. rr隔离级别下只会在开始生成一个readview，以后都是读这个readview，对于其他事务做的修改，看不到，所以可以解决幻读
-
-  2. 特殊情况：T1 select 之后 update，会将 T2 中 insert 的数据一起更新，那么认为多出来一行，所以防不住幻读。
-
-     如果是当前读，T1 在 select 的时候加了锁（间隙锁，行锁）进入一致性读，那么自然没有 T2 可以插入数据这一回事儿了。就属于next-key锁，所以不存在幻读。
-
-  3. **快照读(无锁读)的幻读-mvcc 解决(掩耳盗铃的做法)**
-     **当前读(加锁读)的幻读-gap 锁解决**
-
-3. mysql的索引讲一下，一级和二级索引的区别，什么时候可以不用查一级索引
-
-   - 当MySQL中有主键时，主键就是一级索引，二级索引就是可以根据需要的字段去建立二级索引，覆盖索引就不需要查一级索引(即不需要回表)
-
-4. 多表查询怎么优化
-   1. 我能想到的第一条就是不要使用子查询进行查询多表的SQL
-   2. 可以只使用where的条件进行关联多表，不使用join来进行多表关联
-   3. 开启数据库的缓存，然后把多表查询都拆分为单个的查询
-
-5. mysql缓存
-
+2. MVCC与RR隔离级别下的幻读问题
+   1. MVCC中，RR隔离级别下只会在开始生成一个readview，以后都是读这个readview，对于其他事务做的修改，看不到，所以可以解决幻读
+   2. 特殊情况：T1 select 之后 update，会将 T2 中 insert 的数据一起更新，那么认为多出来一行，所以防不住幻读。
+   **快照读(无锁读)的幻读-mvcc 解决(掩耳盗铃的做法)**
+   **当前读(加锁读)的幻读-gap 锁解决**
+3. mysql缓存
    1. `show variables like '%query_cache%';`查询缓存相关配置
-
-6. mysql死锁情形
+4. mysql死锁情形
    1. A事务有id=2的行锁，等待B事务释放id=1的行锁；B事务有id=1的行锁，等待A事务释放id=2的行锁
    2. 解决策略：
       1. 设置超时时间：`innodb_lock_wait_timeout`
       2. 检测，发现死锁后回滚死锁链条中的某个事务，让其他事务继续执行：`innodb_deadlock_detect`设置为`on`.
-
-7. 原生JDBC访问数据库
+5. 原生JDBC访问数据库
    1. 加载jdbc的驱动程序
    2. 从负责管理jdbc驱动的管理类DriverManager中获取数据库的实例连接对象
    3. DriverManager.getConnection（）来进行获取，拿到的是一个Connection对象实例
    4. 使用Connection对象来获取一个PreparedStatement对象（
    5. 执行SQL语句，返回一个Result对象结果集
    6. 依次关闭数据库的连接。
-
-8. mysql查询流程
-
+6. mysql查询流程
    ![mysql.png](http://ww1.sinaimg.cn/large/007jDR55gy1gcvldkvrrdj30ou0kiaft.jpg)
-
    - mysql可分为**server层**和**存储引擎**层两部分
-
    1. **连接器**：负责跟客户端建立TCP连接，校验用户名密码读取权限表获取权限
    2. **查询缓存**：如果是执行查询语句，会先从查询缓存中取，取到了就返回。(之前查询的结果会以key-value形式存在于缓存中，key：查询语句；value：查询结果)
       1. 缺点：可能缓存的数据还没有用到，表更新了，查询缓存被清空了
@@ -773,133 +750,88 @@ select * from mysql.general_log;-- 执行的sql就会记录到general_log表里
    5. **执行器**：经过分析器之后，就知道怎么做了，判断是否有执行查询的权限，没有就报错。调用存储引擎接口去执行查询。
    6. **存储引擎**：存储引擎先打开表，如果需要锁就先获取锁。 查询缓存页中有没有相应的数据，如果有则可以直接查询返回，如果没有就要从磁盘上去读取。当在磁盘中找到相应的数据之后，则会加载到缓存中来，从而使得后面的查询更加高效，由于内存有限，多采用变通的LRU表来管理缓存页，保证缓存的都是经常访问的数据。最后，获取数据后返回给客户端，
    7. **关闭连接，释放连接线程**。
-
-9. mysql更新流程
-
+7. mysql更新流程
    - crash-safe：即使mysql发生异常重启，之前提交的记录都不会丢失
    - innodb引擎的redo-log保证了crash-safe
    - server层的归档日志binlog
-
    1. 连接器：...
    2. 分析器：...
    3. 优化器：...
    4. 执行器：**从存储引擎获取数据(比如更新id=2的记录就获取id=2记录)，拿到后修改，修改后利用存储引擎写入内存。**
    5. 存储引擎：**写入到内存后把记录写到redo log中，redo log处于prepare状态，再告知执行器已写完**
    6. 执行器：**生成binlong,写入磁盘。执行器提交事务，存储引擎把redo log更为commit状态**
-
-10. SQL查询慢的原因
-
+8. SQL查询慢的原因
    1. 偶尔很慢
-
       1. 当我们要往数据库插入一条数据、或者要更新一条数据的时候，我们知道数据库会在**内存**中把对应字段的数据更新了，但是更新之后，这些更新的字段并不会马上同步持久化到**磁盘**中去，而是把这些更新的记录写入到 redo log 日记中去，等到空闲的时候，在通过 redo log 里的日记把最新的数据同步到**磁盘**中去。
-
-         不过，redo log 里的容量是有限的，如果数据库一直很忙，更新又很频繁，这个时候 redo log 很快就会被写满了，这个时候就没办法等到空闲的时候再把数据同步到磁盘的，只能暂停其他操作，全身心来把数据同步到磁盘中去的，而这个时候，**就会导致我们平时正常的SQL语句突然执行的很慢**，所以说，数据库在在同步数据到磁盘的时候，就有可能导致我们的SQL语句执行的很慢了。
-
+      不过，redo log 里的容量是有限的，如果数据库一直很忙，更新又很频繁，这个时候 redo log 很快就会被写满了，这个时候就没办法等到空闲的时候再把数据同步到磁盘的，只能暂停其他操作，全身心来把数据同步到磁盘中去的，而这个时候，**就会导致我们平时正常的SQL语句突然执行的很慢**，所以说，数据库在在同步数据到磁盘的时候，就有可能导致我们的SQL语句执行的很慢了。
       2. 要执行的这条语句，刚好这条语句涉及到的**表**，别人在用，并且加锁了，我们拿不到锁，只能慢慢等。或者，表没有加锁，但要使用到的某个一行被加锁了。
-
-         判断是否真的在等待锁，我们可以用 **`show processlist`**这个命令来查看当前的状态
-
-         1. **`show processlist`显示：`Waiting for table flush`**。等flush，`flush tables with read lock;`被别的语句阻塞，这个查询慢的语句又被`flush tables with read lock;`阻塞
-         2. **`show processlist`显示：`Waiting for table metadata lock`**。说明一个请求正持有`metadata lock`写锁，把select语句堵住了，通过`SELECT blocking_pid FROM sys.schema_table_lock_waits;`找到阻塞的process id，kill掉
-         3. 一个事务不提交，导致select查询不能执行。在`sys.innodb_lock_waits`中找到造成阻塞的线程id，kill掉它。
-         4. 事务A开启，事务B执行`update t  set c = c + 1 where id = 1`一百万次，事务A分别执行`select * from t where id=1`、`select * from t where id=1 lock in share mode`。第一句没加锁，但是属于一致性读，依次执行undo log，执行了100万次以后，才将1这个结果返回，较慢。第二句虽然加了锁，但是是当前读，因此会直接读到1000001这个结果，所以速度很快。
-
+      判断是否真的在等待锁，我们可以用 **`show processlist`**这个命令来查看当前的状态
+        1. **`show processlist`显示：`Waiting for table flush`**。等flush，`flush tables with read lock;`被别的语句阻塞，这个查询慢的语句又被`flush tables with read lock;`阻塞
+        2. **`show processlist`显示：`Waiting for table metadata lock`**。说明一个请求正持有`metadata lock`写锁，把select语句堵住了，通过`SELECT blocking_pid FROM sys.schema_table_lock_waits;`找到阻塞的process id，kill掉
+        3. 一个事务不提交，导致select查询不能执行。在`sys.innodb_lock_waits`中找到造成阻塞的线程id，kill掉它。
+        4. 事务A开启，事务B执行`update t  set c = c + 1 where id = 1`一百万次，事务A分别执行`select * from t where id=1`、`select * from t where id=1 lock in share mode`。第一句没加锁，但是属于一致性读，依次执行undo log，执行了100万次以后，才将1这个结果返回，较慢。第二句虽然加了锁，但是是当前读，因此会直接读到1000001这个结果，所以速度很快。
    2. 一直很慢
-
       1. 没建索引
-
       2. 建了索引没有用到(在索引列上计算、使用函数等等)
-
       3. 优化器没走索引
-
          - 优化器逻辑：选择一个最优的执行方案。尽量扫描行数最低，还会参考是否使用临时表、是否排序等因素。
          - 一个索引上不同的值越多-->区分度越好-->基数越大
-
          ```sql
-         /* 查看索引基数 */
+         # 查看索引基数
          show index from t
          ```
-
          - mysql采样获取索引的基数，存在误差
-
          - 解决办法：
-
          1. 重新统计
-
          ```sql
-         /* 重新统计索引信息 */
+         # 重新统计索引信息
          analyze table t
          ```
-
          2. 强制走索引
-
          ```sql
-         /* a为索引列，使用force index(a) 强制使用索引 
-         	若使用force index：索引换了名字，得改sql；数据库如果迁移，可能不兼容
-         */
+         # a为索引列，使用force index(a) 强制使用索引 
+         # 若使用force index：索引换了名字，得改sql；数据库如果迁移，可能不兼容
          select * from t where a between 10000 and 20000; 
          select * from t force index(a) where a between 10000 and 20000;
          ```
-
          3. 建一个更合适的索引，提供给优化器做选择
-
-11. show processlist
-
+9. show processlist
    1. **查看当前用户的正在运行的线程，root用户能看到所有正在运行的线程**
    2. id：线程的唯一标识，可通过kill命令杀掉线程
    3. user：当前用户
    4. host：ip + 端口号
-
-12. \G
-
-   1. 变成纵向的
-
-13. MRR(Multi-Range Read)
-
-   1. 5.6开始支持
-
-     开启：`set optimizer_switch='mrr=on';`
-
-     考虑MRR的成本：`set optimizer_switch='mrr_cost_based=on';`
-
-   2. **MRR 通过把「随机磁盘读」，转化为「顺序磁盘读」，从而提高了索引查询的性能**，**对于 Innodb，则会按照聚簇索引键值排好序，再顺序的读取聚簇索引。**本质是一种空间换时间的算法，
-
-   3. 如果不用mrr，比如读完第1页后，读第2页，第3页，接着又去读第1页，那么机械硬盘的磁盘和磁头就需要来回做机械运动，MRR把索引减少磁盘IO的作用进一步放大
-
-14. **binlog** VS **redo log **VS **undo log**
-
-   1. binlog
-     1. Binlog是二进制格式的日志，又称为归档日志，是**MySQL Server层记录的日志**。
-     2. 用来记录对数据的修改操作，可作为恢复数据使用，主从复制搭建。
-     3. binlog是追加写，是指一份写到一定大小的时候会更换下一个文件，不会覆盖。
-   2. redo log
-     1. redo log是**InnoDB存储引擎层的日志**。
-     2. redo log作为异常宕机或者介质故障后的数据恢复使用，保证crash safe
-     3. redo log是循环写，日志空间大小固定。
-   3. mysql通过两阶段提交来保证redo log与bin log数据一致
-      1. 第一阶段：redo log写盘，事务进入prepare状态
-      2. 第二阶段：binlog写盘，事务进入commit 状态
-   4. undo log
-      1. 保证原子性，用于回滚；用于MVCC
-
-15. InnoDB与MyISAM存储结构
-
-   1. 都是用B+树作为索引结构
-   2. MyISAM叶结点存的是数据的地址，它的主索引与辅助索引没啥区别，只是主索引要求唯一
-   3. InnoDB主键索引叶结点存的是数据，辅助索引叶结点存的是当前列的数据以及主键
-
-
-
-
-
-
-
+10. `\G`：变成纵向的
+11. MRR(Multi-Range Read，5.6开始支持)
+      1. 开启：`set optimizer_switch='mrr=on';`
+      2. 考虑MRR的成本：`set optimizer_switch='mrr_cost_based=on';`
+      3. **MRR 通过把「随机磁盘读」，转化为「顺序磁盘读」，从而提高了索引查询的性能**，**对于 Innodb，则会按照聚簇索引键值排好序，再顺序的读取聚簇索引**，本质是一种空间换时间的算法，
+      4. 如果不用mrr，比如读完第1页后，读第2页，第3页，接着又去读第1页，那么机械硬盘的磁盘和磁头就需要来回做机械运动，MRR把索引减少磁盘IO的作用进一步放大
+12. **binlog** VS **redo log** VS **undo log**
+      1. binlog
+         1. Binlog是二进制格式的日志，又称为归档日志，是**MySQL Server层记录的日志**。
+         2. 用来记录对数据的修改操作，可作为恢复数据使用，主从复制搭建。
+         3. binlog是追加写，是指一份写到一定大小的时候会更换下一个文件，不会覆盖。
+      2. redo log
+         1. redo log是**InnoDB存储引擎层的日志**。
+         2. redo log作为异常宕机或者介质故障后的数据恢复使用，保证crash safe
+         3. redo log是循环写，日志空间大小固定。
+      3. mysql通过两阶段提交来保证redo log与bin log数据一致
+         1. 第一阶段：redo log写盘，事务进入prepare状态
+         2. 第二阶段：binlog写盘，事务进入commit 状态
+      4. undo log
+         1. 保证原子性，用于回滚
+13. InnoDB与MyISAM存储结构
+      1. 都是用B+树作为索引结构
+      2. MyISAM叶结点存的是数据的地址，它的主索引与辅助索引没啥区别，只是主索引要求唯一
+      3. InnoDB主键索引叶结点存的是数据，辅助索引叶结点存的是当前列的数据以及主键
+   
+***
 1. 建索引考虑的因素
-   1. 覆盖索引-->减少回表次数；索引下推-->减少回表次数
-   2. 介质是机械硬盘-->开开MRR-->随机读变成顺序读
-   3. 如果不要求唯一-->普通索引替换唯一索引，普通索引可以使用change buffer
+      1. 覆盖索引-->减少回表次数；索引下推-->减少回表次数
+      2. 介质是机械硬盘-->开开MRR-->随机读变成顺序读
+      3. 如果不要求唯一-->普通索引替换唯一索引，普通索引可以使用change buffer
 2. explain分析出来不一定是最优的
-   1. 因为我们在索引的时候，可能会涉及一些回表或者排序的操作
+      1. 因为我们在索引的时候，可能会涉及一些回表或者排序的操作
 
 
 
